@@ -1,6 +1,13 @@
 use core::marker::PhantomData;
 
-pub trait Name: Send + Sync
+/// This trait is not exported so that the Name trait
+/// becomes a [_sealed trait_](https://rust-lang.github.io/api-guidelines/future-proofing.html)
+/// which user cannot provide custom implementation to.
+pub trait Sealed
+{
+}
+
+pub trait Name: Send + Sync + Sealed
 {
 }
 
@@ -10,7 +17,7 @@ pub trait HasType<T>: Name
 
 pub struct Named<Name: HasType<Value>, Value>(Value, PhantomData<Name>);
 
-pub struct Seed<N: Name>(PhantomData<N>);
+pub struct Seed<N>(PhantomData<N>);
 
 pub struct Life<'name>(PhantomData<*mut &'name ()>);
 
@@ -29,8 +36,13 @@ impl<Name: HasType<Value>, Value> Named<Name, Value>
   }
 }
 
-impl<N: Name> Seed<N>
+impl<N> Seed<N>
 {
+  pub fn new_name(self) -> impl Name
+  {
+    unsafe_new_name(|| {})
+  }
+
   pub fn new_named<V>(
     self,
     value: V,
@@ -45,13 +57,17 @@ impl<N: Name> Seed<N>
   }
 }
 
-impl<F> Name for SomeName<F> where F: 'static + Send + Sync {}
+impl<F> Sealed for SomeName<F> where F: Send + Sync {}
 
-impl<F, T> HasType<T> for SomeName<F> where F: 'static + Send + Sync {}
+impl<F> Name for SomeName<F> where F: Send + Sync {}
+
+impl<F, T> HasType<T> for SomeName<F> where F: Send + Sync {}
 
 unsafe impl<'name> Send for Life<'name> {}
 
 unsafe impl<'name> Sync for Life<'name> {}
+
+impl<'name> Sealed for Life<'name> {}
 
 impl<'name> Name for Life<'name> {}
 
@@ -62,16 +78,23 @@ pub fn with_seed<R>(cont: impl for<'name> FnOnce(Seed<Life<'name>>) -> R) -> R
   cont(Seed(PhantomData))
 }
 
+fn unsafe_new_name<F>(_: F) -> impl Name
+where
+  F: Send + Sync,
+{
+  SomeName(PhantomData::<F>)
+}
+
 fn unsafe_new_name_with_type<F, T>(_: F) -> impl HasType<T>
 where
-  F: 'static + Send + Sync,
+  F: Send + Sync,
 {
   SomeName(PhantomData::<F>)
 }
 
 fn unsafe_new_seed<F>(_: F) -> Seed<impl Name>
 where
-  F: 'static + Send + Sync,
+  F: Send + Sync,
 {
   Seed(PhantomData::<SomeName<F>>)
 }
