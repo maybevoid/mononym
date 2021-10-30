@@ -4,7 +4,7 @@ Mononym is a library for creating unique type-level names for each value in Rust
 
 Mononym enables the use of the design pattern [Ghosts of Departed Proofs](https://kataskeue.com/gdp.pdf) in Rust. It provides macros that simplify the definition of [dependent pairs](https://docs.idris-lang.org/en/latest/tutorial/typesfuns.html#dependent-pairs) and proof objects in Rust. Although there is still limited support for a full dependently-typed programming in Rust, Mononym helps us move a small step toward that direction by making it possible to refer to values in types.
 
-## Core Concepts
+## Implementation Details
 
 Mononym harness several features unique to Rust and have a simpler implementation of named values compared to the existing implementations in languages like Haskell.
 
@@ -104,26 +104,17 @@ trait Name {}
 struct SomeName<N>(PhantomData<N>);
 impl <N> Name for SomeName<N> {}
 
-fn unsafe_new_name<N>(_: N) -> impl Name {
-  SomeName::<N>(PhantomData)
-}
-
 struct Seed<N>(PhantomData<N>);
-
-fn unsafe_new_seed<N>(_: N) -> Seed<impl Name>
-{
-  Seed(PhantomData::<SomeName<N>>)
-}
 
 impl <N> Seed<N> {
   fn new_name(self) -> impl Name
   {
-    unsafe_new_name(|| {})
+    SomeName::<N>(PhantomData)
   }
 
   fn replicate(self) -> (Seed<impl Name>, Seed<impl Name>)
   {
-    (unsafe_new_seed(|| {}), unsafe_new_seed(|| {}))
+    (Seed(PhantomData::<SomeName<N>>), Seed(PhantomData::<SomeName<N>>))
   }
 }
 
@@ -139,6 +130,114 @@ The type `Seed<N>` is parameterized by a name `N` and provides two methods. The 
 
 Although the seed is consumed during name generation, the second method `replicate(self)` consumes the original seed, and returns two new seeds with unique names in the form of `Seed<impl Name>`. By calling `replicate` one or more times, we will be able to generate multiple names with unique types.
 
-The `unsafe_new_seed` function creates a new seed in the form of `Seed<impl Name>`, and similar to other functions earlier, a direct call to `unsafe_new_seed` may be unsafe and return names of the same type. However we can keep the `unsafe_new_seed` function private to the Mononym crate, so that users cannot create new seeds directly. In this way, external functions would have to always accept `Seed<impl Name>` as an argument somewhere along the function calls to be able to generate new names.
+Since there is no public constructor function to create new `Seed` value, the only way external users can create new seed is by replicating existing seeds. In this way, external functions would have to always accept `Seed<impl Name>` as an argument somewhere along the function calls to be able to generate new names.
 
 By treating our `test` function as an external function, it is forced to accept a `Seed<impl Name>` in order to generate new `impl Name`s. We first use `seed.replicate()` to create two new seeds `seed1` and `seed2`. When we compile the code, we can find out that the test `same(seed1, seed2)` fails, indicating that the two replicated seeds have different types. Similarly, the test `same(seed1.new_name(), seed2.new_name())` fails because the two names are generated from different seeds. It is also not possible to do something like `same(seed.new_name(), seed.new_name())`, because the affine type system of Rust consumes the seed during name generation and to not allow the seed to be reused.
+
+### Named Values
+
+The `Seed` type we defined earlier provides a `new_name` method that returns unique `impl Name`. While having a unique name is not very useful on its own, it can be used to define a `Named<Name, T>` struct to assign unique names to a given value of type `T`. The `Named` struct is defined and used as follows:
+
+```rust,compile_fail
+use core::marker::PhantomData;
+
+pub struct Named<Name, T>(T, PhantomData<Name>);
+
+impl <Name, T> Named<Name, T> {
+  pub fn value(&self) -> &T { &self.0 }
+  pub fn into_value(self) -> T { self.0 }
+}
+
+pub trait Name {}
+pub struct Seed<N>(PhantomData<N>);
+
+impl <N: Name> Seed<N> {
+  pub fn new_named<T>(self, value: T) -> Named<impl Name, T>
+  {
+    Named::<N, _>(value, PhantomData)
+  }
+
+   pub fn replicate(self) -> (Seed<impl Name>, Seed<impl Name>)
+  {
+    (Seed(PhantomData::<N>), Seed(PhantomData::<N>))
+  }
+}
+
+fn test(seed: Seed<impl Name>) {
+  fn same<T>(_: T, _: T) {}
+  let (seed1, seed2) = seed.replicate();
+  same(seed1.new_named(1), seed2.new_named(1)); // error
+}
+```
+
+The struct `Named<Name, T>` is essentially a newtype wrapper around `T`, with the underlying value kept private. The `Named` type provides two public methods, `value` for getting a reference to the underlying value, and `into_value` to convert the named value to the underlying value.
+
+The `Seed` type now provides a `new_named` value that accepts an owned value of type `T`, and returns a `Named<impl Name, T>`. Because the `impl Name` is nested inside `Named`, we can guarantee that the new name given to the value is unique, provided that the `Seed` type is unique.
+
+Similar to earlier, we can test that two named values indeed have different names by writing a `test` function that accepts a `Seed<impl Name>`. After replicating the seed, we can verify that the test `same(seed1.new_named(1), seed2.new_named(1))` fails with error during compilation. This shows that the `Named<impl Name, i32>` returned by the two calls to `new_name` are indeed unique.
+
+### Unique Lifetime with Higher Ranked Trait Bounds
+
+Our setup for generating uniquely named values is mostly complete, provided we are able to hand over the first unique `Seed` value to the main function to start generating the names. But we cannot simply expose a function like `fn new_seed() -> Seed<impl Name>`, as we know that two calls to the same function will return the same seed, thereby making it non-unique.
+
+We know that in languages like Haskell, it is possible to generate unique types by using continuation-passing-style with _higher-ranked_ continuations. While Rust do not currently support higher-ranked types, it instead supports [_higher-ranked trait bounds_](https://rustc-dev-guide.rust-lang.org/traits/hrtb.html) (HRTB) which can be used in similar way.
+
+```rust,compile_fail
+use core::marker::PhantomData;
+
+pub trait Name {}
+pub struct Life<'name>(PhantomData<*mut &'name ()>);
+impl<'name> Name for Life<'name> {}
+
+pub fn with_seed<R>(
+  cont: impl for<'name> FnOnce(Seed<Life<'name>>) -> R
+) -> R {
+  cont(Seed(PhantomData))
+}
+
+pub struct Named<Name, T>(T, PhantomData<Name>);
+
+impl <Name, T> Named<Name, T> {
+  pub fn value(&self) -> &T { &self.0 }
+  pub fn into_value(self) -> T { self.0 }
+}
+
+pub struct Seed<N>(PhantomData<N>);
+
+impl <N: Name> Seed<N> {
+  pub fn new_named<T>(self, value: T) -> Named<impl Name, T>
+  {
+    Named::<N, _>(value, PhantomData)
+  }
+
+   pub fn replicate(self) -> (Seed<impl Name>, Seed<impl Name>)
+  {
+    (Seed(PhantomData::<N>), Seed(PhantomData::<N>))
+  }
+}
+
+fn same<T>(_: T, _: T) {}
+
+with_seed(|seed| {
+  let (seed1, seed2) = seed.replicate();
+  same(seed1, seed2); // error
+  same(seed1.new_named(1), seed2.new_named(1)); // error
+});
+
+with_seed(|seed1| {
+  with_seed(|seed2| {
+    same(seed1, seed2); // error
+    same(seed1.new_named(1), seed2.new_named(1)); // error
+  });
+});
+```
+
+We first come out with a different way of generating unique types, using the `Life` type that is parameterized by a _unique lifetime_. The struct is defined as `struct Life<'name>(PhantomData<*mut &'name ()>)`. The inner type `PhantomData<*mut &'name ()>` makes Rust treats `Life<'name>` as if it is a raw pointer of type `*mut &'name ()`. We specifically make it so that Rust treats `'name` as an _invariant_ phantom lifetime. This means that if we have two types `Life<'name1>` and `Life<'name2>`, Rust would consider them as different types unless `'name1` exactly matches `'name2`.
+
+Using `Life`, we now simplify the problem of generating unique names to generating unique lifetimes. We then define the `with_seed` function, which accepts a continuation with a _higher-ranked trait bound_ `impl for<'name> FnOnce(Seed<Life<'name>>) -> R`. The `for<'name>` part forces the contnuation closure to work with _all_ possible lifetimes. As a result, we can guarantee that the type `Life<'name>` is always unique inside the closure.
+
+We can now repeat the same test we had earlier, but now with the tests running inside the closure inside `with_seed`. We can verify that after replicating the seed, the tests `same(seed1, seed2)` and `same(seed1.new_named(1), seed2.new_named(1))` still fail with compilation error, indicating that the names generated are different.
+
+We can also repeat the same test with two nested calls to `with_seed`, thereby getting two separate fresh seeds `seed1` and `seed2`. Thanks to the magic of HRTB and invariant phantom lifetime, we can verify that even in this case the test `same(seed1, seed2)` still fails, indicating that Rust is treating the two underlying lifetimes differently. Similarly, the test `same(seed1.new_named(1), seed2.new_named(1))` also fails, indicating that names generated by two different seeds are indeed different.
+
+The techniques of using phantom lifetimes as names and using HRTB to generate new lifetimes is first explored in [GhostCell](http://plv.mpi-sws.org/rustbelt/ghostcell/). With that, we close the loop of unique name generation by requiring the top level program to generate the first seed using `with_seed`. Furthermore, since multiple calls to `with_seed` is safe, this means that there is no way for external users to do unsafe construction of two seeds or named values of the same type. From this, we can safely reason that whenever we get a value of type `Named<Name, T>`, the type `Name` is always uniquely assigned to the underlying value.
