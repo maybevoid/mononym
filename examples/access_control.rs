@@ -2,13 +2,13 @@
 
 mod data
 {
-  #[derive(Debug, Eq, PartialEq)]
+  #[derive(Debug, Clone, Eq, PartialEq)]
   pub struct UserId(pub String);
 
-  #[derive(Debug, Eq, PartialEq)]
+  #[derive(Debug, Clone, Eq, PartialEq)]
   pub struct PostId(pub String);
 
-  #[derive(Debug, Eq, PartialEq)]
+  #[derive(Debug, Clone, Eq, PartialEq)]
   pub struct GroupId(pub String);
 
   #[derive(Debug)]
@@ -89,6 +89,14 @@ mod named_query
 
   exists! {
     ExistUser(user: User) => UserHasId(user_id: UserId);
+
+    ExistGroups(groups: Vec<Group>) => UserInGroups(user_id: UserId);
+
+    ExistPost(post: Post) => PostHasId(post_id: PostId);
+  }
+
+  proof! {
+    UserIsAdmin(user_id: UserId);
   }
 
   pub fn get_user_info<UserIdVal: HasType<UserId>>(
@@ -101,10 +109,6 @@ mod named_query
     Ok(new_exist_user(seed, user))
   }
 
-  exists! {
-    ExistGroups(groups: Vec<Group>) => UserInGroups(user_id: UserId);
-  }
-
   pub fn get_user_groups<UserIdVal: HasType<UserId>>(
     seed: Seed<impl Name>,
     user_id: &Named<UserIdVal, UserId>,
@@ -113,10 +117,6 @@ mod named_query
     let groups = raw_query::get_user_groups(user_id.value())?;
 
     Ok(new_exist_groups(seed, groups))
-  }
-
-  proof! {
-    UserIsAdmin(user_id: UserId);
   }
 
   pub fn user_is_admin<UserIdVal: HasType<UserId>>(
@@ -130,10 +130,6 @@ mod named_query
     } else {
       Ok(None)
     }
-  }
-
-  exists! {
-    ExistPost(post: Post) => PostHasId(post_id: PostId);
   }
 
   pub fn get_post_info<PostIdVal: HasType<PostId>>(
@@ -203,10 +199,7 @@ mod access_control
   use super::{
     data::*,
     named_query::*,
-    privacy::{
-      PostHasPrivacy,
-      Public,
-    },
+    privacy::*,
   };
 
   proof! {
@@ -217,6 +210,10 @@ mod access_control
     UserIsAuthor(post_id: PostId, user_id: UserId);
 
     UserInGroup(group_id: GroupId, user_id: UserId);
+  }
+
+  exists! {
+    ExistPostGroup(group_id: GroupId) => PostInGroup(post_id: PostId);
   }
 
   pub fn check_user_is_author<
@@ -236,6 +233,56 @@ mod access_control
     }
   }
 
+  pub fn check_user_in_group<
+    UserIdVal: HasType<UserId>,
+    GroupIdVal: HasType<GroupId>,
+    GroupsVal: HasType<Vec<Group>>,
+  >(
+    user_id: &Named<UserIdVal, UserId>,
+    group_id: &Named<GroupIdVal, GroupId>,
+    groups: &Named<GroupsVal, Vec<Group>>,
+    _user_in_groups: &UserInGroups<GroupsVal, UserIdVal>,
+  ) -> Option<UserInGroup<GroupIdVal, UserIdVal>>
+  {
+    for group in groups.value().iter() {
+      if &group.group_id == group_id.value() {
+        return Some(UserInGroup::new());
+      }
+    }
+
+    None
+  }
+
+  pub fn get_post_group<PostIdVal: HasType<PostId>, PostVal: HasType<Post>>(
+    seed: Seed<impl Name>,
+    post: &Named<PostVal, Post>,
+    _post_has_id: &PostHasId<PostVal, PostIdVal>,
+  ) -> Option<ExistPostGroup<impl HasType<GroupId>, PostIdVal>>
+  {
+    post
+      .value()
+      .group_id
+      .as_ref()
+      .map(move |group_id| new_exist_post_group(seed, group_id.clone()))
+  }
+
+  pub fn check_post_in_group<
+    GroupIdVal: HasType<GroupId>,
+    PostIdVal: HasType<PostId>,
+    PostVal: HasType<Post>,
+  >(
+    group_id: &Named<GroupIdVal, GroupId>,
+    post: &Named<PostVal, Post>,
+    _post_has_id: &PostHasId<PostVal, PostIdVal>,
+  ) -> Option<PostInGroup<GroupIdVal, PostIdVal>>
+  {
+    if post.value().group_id.as_ref() == Some(group_id.value()) {
+      Some(PostInGroup::new())
+    } else {
+      None
+    }
+  }
+
   pub fn author_can_edit_post<
     UserIdVal: HasType<UserId>,
     PostIdVal: HasType<PostId>,
@@ -246,11 +293,11 @@ mod access_control
     UserCanEditPost::new()
   }
 
-  pub fn can_edit_also_can_view<
+  pub fn can_edit_also_can_read<
     UserIdVal: HasType<UserId>,
     PostIdVal: HasType<PostId>,
   >(
-    _can_edit: UserCanEditPost<PostIdVal, UserIdVal>
+    _can_edit: &UserCanEditPost<PostIdVal, UserIdVal>
   ) -> UserCanReadPost<PostIdVal, UserIdVal>
   {
     UserCanReadPost::new()
@@ -260,10 +307,45 @@ mod access_control
     UserIdVal: HasType<UserId>,
     PostIdVal: HasType<PostId>,
   >(
-    _post_is_public: PostHasPrivacy<Public, PostIdVal>
+    _post_is_public: &PostHasPrivacy<Public, PostIdVal>
   ) -> UserCanReadPost<PostIdVal, UserIdVal>
   {
     UserCanReadPost::new()
+  }
+
+  pub fn admin_can_edit_any_post<
+    UserIdVal: HasType<UserId>,
+    PostIdVal: HasType<PostId>,
+  >(
+    _user_is_admin: &UserIsAdmin<UserIdVal>
+  ) -> UserCanEditPost<PostIdVal, UserIdVal>
+  {
+    UserCanEditPost::new()
+  }
+  pub fn group_member_can_read_post_with_group_read_privacy<
+    UserIdVal: HasType<UserId>,
+    PostIdVal: HasType<PostId>,
+    GroupIdVal: HasType<GroupId>,
+  >(
+    _user_in_group: &UserInGroup<GroupIdVal, UserIdVal>,
+    _post_in_group: &PostInGroup<GroupIdVal, PostIdVal>,
+    _post_has_group_read_privacy: &PostHasPrivacy<GroupRead, PostIdVal>,
+  ) -> UserCanReadPost<PostIdVal, UserIdVal>
+  {
+    UserCanReadPost::new()
+  }
+
+  pub fn group_member_can_edit_post_with_group_edit_privacy<
+    UserIdVal: HasType<UserId>,
+    PostIdVal: HasType<PostId>,
+    GroupIdVal: HasType<GroupId>,
+  >(
+    _user_in_group: &UserInGroup<GroupIdVal, UserIdVal>,
+    _post_in_group: &PostInGroup<GroupIdVal, PostIdVal>,
+    _post_has_group_read_privacy: &PostHasPrivacy<GroupEdit, PostIdVal>,
+  ) -> UserCanEditPost<PostIdVal, UserIdVal>
+  {
+    UserCanEditPost::new()
   }
 }
 

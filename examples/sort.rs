@@ -6,9 +6,9 @@ mod equal
 
   pub struct Equal<Val1, Val2>(PhantomData<(Val1, Val2)>);
 
-  use mononym::Named;
+  use mononym::*;
 
-  pub fn check_equal<T: Eq, Val1, Val2>(
+  pub fn check_equal<T: Eq, Val1: HasType<T>, Val2: HasType<T>>(
     value1: &Named<Val1, T>,
     value2: &Named<Val2, T>,
   ) -> Option<Equal<Val1, Val2>>
@@ -41,17 +41,21 @@ mod size
 
   pub struct NonEmpty<ListVal>(PhantomData<ListVal>);
 
-  pub struct SizeResult<ListVal, SizeVal>
-  {
+  pub struct SizeResult<
+    Elem,
+    ListVal: HasType<Vec<Elem>>,
+    SizeVal: HasType<usize>,
+  > {
     size: Named<SizeVal, usize>,
     size_proof: ListSize<ListVal, SizeVal>,
     non_empty_proof: Option<NonEmpty<ListVal>>,
+    phantom: PhantomData<Elem>,
   }
 
-  pub fn list_size<Elem, ListVal>(
+  pub fn list_size<Elem, ListVal: HasType<Vec<Elem>>>(
     seed: Seed<impl Name>,
     list: &Named<ListVal, Vec<Elem>>,
-  ) -> SizeResult<ListVal, impl HasType<usize>>
+  ) -> SizeResult<Elem, ListVal, impl HasType<usize>>
   {
     let size = list.value().len();
     if size == 0 {
@@ -59,12 +63,14 @@ mod size
         size: seed.new_named(size),
         size_proof: ListSize(PhantomData),
         non_empty_proof: None,
+        phantom: PhantomData,
       }
     } else {
       SizeResult {
         size: seed.new_named(size),
         size_proof: ListSize(PhantomData),
         non_empty_proof: Some(NonEmpty(PhantomData)),
+        phantom: PhantomData,
       }
     }
   }
@@ -113,14 +119,17 @@ mod sort
     PhantomData<(NewListVal, OldListVal)>,
   );
 
-  pub struct SortedResult<Elem, OldListVal, NewListVal>
-  {
+  pub struct SortedResult<
+    Elem,
+    OldListVal: HasType<Vec<Elem>>,
+    NewListVal: HasType<Vec<Elem>>,
+  > {
     new_list: Named<NewListVal, Vec<Elem>>,
     sorted: Sorted<NewListVal>,
     sorted_from: SortedFrom<NewListVal, OldListVal>,
   }
 
-  pub fn sort<Elem: Ord, Comparator, ListVal>(
+  pub fn sort<Elem: Ord, ListVal: HasType<Vec<Elem>>>(
     seed: Seed<impl Name>,
     list: Named<ListVal, Vec<Elem>>,
   ) -> SortedResult<Elem, ListVal, impl HasType<Vec<Elem>>>
@@ -167,13 +176,13 @@ mod min
 
   pub struct MinElem<ListVal, ElemVal>(PhantomData<(ListVal, ElemVal)>);
 
-  pub struct MinResult<'a, Elem, ListVal, ElemVal>
+  pub struct MinResult<'a, Elem, ListVal, ElemVal: HasType<&'a Elem>>
   {
     elem: Named<ElemVal, &'a Elem>,
     min_proof: MinElem<ListVal, ElemVal>,
   }
 
-  pub fn min<'a, Elem, ListVal>(
+  pub fn min<'a, Elem, ListVal: HasType<Vec<Elem>>>(
     seed: Seed<impl Name>,
     list: &'a Named<ListVal, Vec<Elem>>,
     _sorted: Sorted<ListVal>,
@@ -185,54 +194,6 @@ mod min
     MinResult {
       elem: seed.new_named(elem),
       min_proof: MinElem(PhantomData),
-    }
-  }
-}
-
-mod sort_by
-{
-  use core::{
-    cmp::Ordering,
-    marker::PhantomData,
-  };
-
-  use mononym::{
-    HasType,
-    Name,
-    Named,
-    Seed,
-  };
-
-  pub struct SortedBy<ListVal, ComparatorVal>(
-    PhantomData<(ListVal, ComparatorVal)>,
-  );
-  pub struct SortedFrom<NewListVal, OldListVal>(
-    PhantomData<(NewListVal, OldListVal)>,
-  );
-
-  pub struct SortedResult<Elem, OldListVal, NewListVal, ComparatorVal>
-  {
-    new_list: Named<NewListVal, Vec<Elem>>,
-    sorted_by: SortedBy<NewListVal, ComparatorVal>,
-    sorted_from: SortedFrom<NewListVal, OldListVal>,
-  }
-
-  pub fn sort_by<Elem, Comparator, ListVal, ComparatorVal>(
-    seed: Seed<impl Name>,
-    list: Named<ListVal, Vec<Elem>>,
-    comparator: &Named<ComparatorVal, Comparator>,
-  ) -> SortedResult<Elem, ListVal, impl HasType<Vec<Elem>>, ComparatorVal>
-  where
-    Comparator: Fn(&Elem, &Elem) -> Ordering,
-  {
-    let mut new_list = list.into_value();
-    new_list.sort_by(comparator.value());
-    let new_list = seed.new_named(new_list);
-
-    SortedResult {
-      new_list,
-      sorted_by: SortedBy(PhantomData),
-      sorted_from: SortedFrom(PhantomData),
     }
   }
 }
@@ -253,13 +214,24 @@ mod lookup
     PhantomData<(MapVal, KeyVal, ValueVal)>,
   );
 
-  pub struct LookupResult<'a, Value, MapVal, KeyVal, ValueVal>
-  {
+  pub struct LookupResult<
+    'a,
+    Value,
+    MapVal,
+    KeyVal,
+    ValueVal: HasType<&'a Value>,
+  > {
     enry_value: Named<ValueVal, &'a Value>,
     has_key_proof: HasKey<MapVal, KeyVal, ValueVal>,
   }
 
-  pub fn lookup<'a, Key, Value, MapVal, KeyVal>(
+  pub fn lookup<
+    'a,
+    Key,
+    Value,
+    MapVal: HasType<BTreeMap<Key, Value>>,
+    KeyVal: HasType<Key>,
+  >(
     seed: Seed<impl Name>,
     map: &'a Named<MapVal, BTreeMap<Key, Value>>,
     key: &Named<KeyVal, Key>,

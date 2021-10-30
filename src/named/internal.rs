@@ -8,7 +8,7 @@ pub trait HasType<T>: Name
 {
 }
 
-pub struct Named<Name, Value>(Value, PhantomData<Name>);
+pub struct Named<Name: HasType<Value>, Value>(Value, PhantomData<Name>);
 
 pub struct Seed<N: Name>(PhantomData<N>);
 
@@ -16,7 +16,7 @@ pub struct Life<'name>(PhantomData<*mut &'name ()>);
 
 struct SomeName<N>(PhantomData<N>);
 
-impl<Name, Value> Named<Name, Value>
+impl<Name: HasType<Value>, Value> Named<Name, Value>
 {
   pub fn value<'a>(&'a self) -> &'a Value
   {
@@ -76,7 +76,7 @@ where
   Seed(PhantomData::<SomeName<F>>)
 }
 
-fn unsafe_new_named<Name, Value>(
+fn unsafe_new_named<Name: HasType<Value>, Value>(
   _: Name,
   value: Value,
 ) -> Named<Name, Value>
