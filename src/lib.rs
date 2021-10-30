@@ -2,6 +2,8 @@
 
 mod named;
 
+pub mod proof;
+
 pub mod macros;
 
 pub use named::{

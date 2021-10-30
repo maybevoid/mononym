@@ -2,8 +2,10 @@ mod list_size
 {
   use mononym::*;
 
+  // Emulates the following dependent pair in Idris:
+  //  (t: Type) -> (list: Vec t) -> (size: usize ** ListHasSize size list)
   exists! {
-    ExistSize(size: usize) => ListHasSize<T>(list: Vec<T>)
+    ExistSize(size: usize) => ListHasSize<T>(list: Vec<T>);
   }
 
   pub fn list_size<T, ListVal: HasType<Vec<T>>>(
@@ -21,7 +23,7 @@ mod list_positive
   use mononym::*;
 
   exists! {
-    ExistPositives(count: usize) => ListHasPositives(list: Vec<i64>)
+    ExistPositives(count: usize) => ListHasPositives(list: Vec<i64>);
   }
 
   pub fn count_positive_integers<ListVal: HasType<Vec<i64>>>(
@@ -40,7 +42,7 @@ mod greater_half
   use mononym::*;
 
   proof! {
-    GreaterThanHalf(numerator: usize, denominator: usize)
+    GreaterThanHalf(numerator: usize, denominator: usize);
   }
 
   pub fn greater_than_half<
@@ -70,7 +72,7 @@ mod greater_than_half_positive
   };
 
   proof! {
-    GreaterThanHalfPositive(list: Vec<i64>)
+    GreaterThanHalfPositive(list: Vec<i64>);
   }
 
   pub fn greater_than_half_positive<
@@ -78,7 +80,7 @@ mod greater_than_half_positive
     TotalCountVal: HasType<usize>,
     PositiveCountVal: HasType<usize>,
   >(
-    _has_size: &ListHasSize<TotalCountVal, i64, ListVal>,
+    _has_size: &ListHasSize<i64, TotalCountVal, ListVal>,
     _has_positives: &ListHasPositives<PositiveCountVal, ListVal>,
     _greater_than_half: &GreaterThanHalf<PositiveCountVal, TotalCountVal>,
   ) -> GreaterThanHalfPositive<ListVal>

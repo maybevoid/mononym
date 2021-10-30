@@ -2,26 +2,42 @@ pub use paste::paste;
 
 #[macro_export]
 macro_rules! exists {
+  ( $(
+      $exists:ident
+      ( $name:ident : $type:ty ) =>
+      $proof:ident
+      $( < $( $proof_param:ident ),+ $(,) ? > )?
+      ( $( $suchthat:ident $( : $suchtype:ty )? ),* $(,)? );
+    )*
+
+  ) => {
+    $(
+      $crate::exists_single! {
+        $exists
+        ( $name : $type ) =>
+        $proof
+        $( < $( $proof_param ),* > )*
+        ( $( $suchthat $( : $suchtype )* ),* )
+      }
+    )*
+  }
+}
+
+#[macro_export]
+macro_rules! exists_single {
   ( $exists:ident
     ( $name:ident : $type:ty ) =>
     $proof:ident
     $( < $( $proof_param:ident ),+ $(,) ? > )?
     ( $( $suchthat:ident $( : $suchtype:ty )? ),* $(,)? )
   ) => {
-    $crate::macros::paste! {
-      pub struct [< $proof:camel >] <
-        [< $name:camel Val >] : $crate::HasType<$type>,
-        $( $( $proof_param, )* )?
-        $( [< $suchthat:camel Val >] $( : $crate::HasType<$suchtype> )?  ),*
-      >
-      (
-        ::core::marker::PhantomData<(
-          [< $name:camel Val >],
-          $( $( $proof_param, )* )?
-          $( [< $suchthat:camel Val >] ),*
-        )>
-      );
+    $crate::proof_single! {
+      $proof
+      $( < $( $proof_param ),* > )?
+      ( $name : $type, $( $suchthat $( : $suchtype )? ),* )
+    }
 
+    $crate::macros::paste! {
       pub struct [< $exists:camel >]
       <
         [< $name:camel Val >] : $crate::HasType<$type>,
@@ -35,8 +51,9 @@ macro_rules! exists {
         >,
         pub [< $proof:snake >] :
           [< $proof:camel >]
-          < [< $name:camel Val >],
+          <
             $( $( $proof_param, )* )?
+            [< $name:camel Val >],
             $( [< $suchthat:camel Val >] ),*
           >,
       }
@@ -67,6 +84,23 @@ macro_rules! exists {
 
 #[macro_export]
 macro_rules! proof {
+  ( $(
+      $proof:ident
+      $( < $( $proof_param:ident ),+ $(,) ? > )?
+      ( $( $suchthat:ident $( : $suchtype:ty )? ),* $(,)? );
+    )+
+  ) => {
+    $(
+      $crate::proof_single! {
+        $proof
+        $( < $( $proof_param ),* > )?
+        ( $( $suchthat $( : $suchtype )? ),* )
+      }
+    )*
+  }
+}
+#[macro_export]
+macro_rules! proof_single {
   ( $proof:ident
     $( < $( $proof_param:ident ),+ $(,) ? > )?
     ( $( $suchthat:ident $( : $suchtype:ty )? ),* $(,)? )
