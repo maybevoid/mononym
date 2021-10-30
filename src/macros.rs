@@ -64,3 +64,43 @@ macro_rules! exists {
     }
   }
 }
+
+#[macro_export]
+macro_rules! proof {
+  ( $proof:ident
+    $( < $( $proof_param:ident ),+ $(,) ? > )?
+    ( $( $suchthat:ident $( : $suchtype:ty )? ),* $(,)? )
+  ) => {
+    $crate::macros::paste! {
+      pub struct [< $proof:camel >] <
+        $( $( $proof_param, )* )?
+        $( [< $suchthat:camel Val >] $( : $crate::HasType<$suchtype> )?  ),*
+      >
+      (
+        ::core::marker::PhantomData<(
+          $( $( $proof_param, )* )?
+          $( [< $suchthat:camel Val >] ),*
+        )>
+      );
+
+      impl
+      <
+        $( $( $proof_param, )* )?
+        $( [< $suchthat:camel Val >] $( : $crate::HasType<$suchtype> )?  ),*
+      >
+      [< $proof:camel >]
+      <
+        $( $( $proof_param, )* )?
+        $( [< $suchthat:camel Val >]  ),*
+      >
+      {
+        fn new () -> Self
+        {
+          [< $proof:camel >] (
+            ::core::marker::PhantomData
+          )
+        }
+      }
+    }
+  }
+}

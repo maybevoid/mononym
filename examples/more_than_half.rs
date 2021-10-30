@@ -37,14 +37,11 @@ mod list_positive
 
 mod greater_half
 {
-  use core::marker::PhantomData;
-
   use mononym::*;
 
-  pub struct GreaterThanHalf<
-    NumeratorVal: HasType<usize>,
-    DenominatorVal: HasType<usize>,
-  >(PhantomData<(NumeratorVal, DenominatorVal)>);
+  proof! {
+    GreaterThanHalf(numerator: usize, denominator: usize)
+  }
 
   pub fn greater_than_half<
     NumeratorVal: HasType<usize>,
@@ -55,7 +52,7 @@ mod greater_half
   ) -> Option<GreaterThanHalf<NumeratorVal, DenominatorVal>>
   {
     if *x.value() * 2 > *y.value() {
-      Some(GreaterThanHalf(PhantomData))
+      Some(GreaterThanHalf::new())
     } else {
       None
     }
@@ -64,9 +61,7 @@ mod greater_half
 
 mod greater_than_half_positive
 {
-  use core::marker::PhantomData;
-
-  use mononym::HasType;
+  use mononym::*;
 
   use super::{
     greater_half::GreaterThanHalf,
@@ -74,9 +69,9 @@ mod greater_than_half_positive
     list_size::ListHasSize,
   };
 
-  pub struct GreaterThanHalfPositive<ListVal: HasType<Vec<i64>>>(
-    PhantomData<ListVal>,
-  );
+  proof! {
+    GreaterThanHalfPositive(list: Vec<i64>)
+  }
 
   pub fn greater_than_half_positive<
     ListVal: HasType<Vec<i64>>,
@@ -88,7 +83,7 @@ mod greater_than_half_positive
     _greater_than_half: &GreaterThanHalf<PositiveCountVal, TotalCountVal>,
   ) -> GreaterThanHalfPositive<ListVal>
   {
-    GreaterThanHalfPositive(PhantomData)
+    GreaterThanHalfPositive::new()
   }
 }
 
