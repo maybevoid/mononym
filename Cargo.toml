@@ -2,6 +2,13 @@
 name = "mononym"
 version = "0.1.0"
 edition = "2021"
+description = "Type-level named values with partial dependent type support in Rust"
+homepage = "https://github.com/maybevoid/mononym"
+repository = "https://github.com/maybevoid/mononym"
+authors = [ "Soares Chen <soares.chen@maybevoid.com>" ]
+license = "MIT OR Apache-2.0"
+keywords = [ "dependent-types" ]
+readme = "./README.md"
 
 [dependencies]
 paste = "1.0.5"

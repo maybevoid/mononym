@@ -20,10 +20,14 @@
  generation in Rust.
 */
 
+/**
+The main implementation for named data types.
+*/
 pub mod named;
 
 pub mod proof;
 
+#[doc(hidden)]
 pub mod macros;
 
 pub use named::{
