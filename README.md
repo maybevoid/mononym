@@ -6,7 +6,7 @@
 
 [crates-badge]: https://img.shields.io/crates/v/mononym.svg
 [crates-url]: https://crates.io/crates/mononym
-[doc-badge]: https://img.shields.io/badge/docs-latest-blue.svg?style=flat-square
+[doc-badge]: https://docs.rs/mononym/badge.svg
 [doc-url]: https://docs.rs/mononym
 [license-badge]: https://img.shields.io/crates/l/mononym.svg
 [license-url]: https://github.com/maybevoid/mononym/blob/master/LICENSE
