@@ -25,53 +25,58 @@ mod size
 {
   use core::marker::PhantomData;
 
-  use mononym::{
-    HasType,
-    Name,
-    Named,
-    Seed,
-  };
+  use mononym::*;
 
   use super::sort::{
     Sorted,
     SortedFrom,
   };
 
-  pub struct ListSize<ListVal, SizeVal>(PhantomData<(ListVal, SizeVal)>);
-
-  pub struct NonEmpty<ListVal>(PhantomData<ListVal>);
-
-  pub struct SizeResult<
-    Elem,
-    ListVal: HasType<Vec<Elem>>,
-    SizeVal: HasType<usize>,
-  > {
-    size: Named<SizeVal, usize>,
-    size_proof: ListSize<ListVal, SizeVal>,
-    non_empty_proof: Option<NonEmpty<ListVal>>,
-    phantom: PhantomData<Elem>,
+  exists! {
+    ExistListSize(size: usize) => ListHasSize<T>(list: Vec<T>);
   }
+
+  proof! {
+    NonEmpty<T>(list: Vec<T>);
+  }
+
+  // pub struct ListSize<ListVal, SizeVal>(PhantomData<(ListVal, SizeVal)>);
+
+  // pub struct NonEmpty<ListVal>(PhantomData<ListVal>);
+
+  // pub struct SizeResult<
+  //   Elem,
+  //   ListVal: HasType<Vec<Elem>>,
+  //   SizeVal: HasType<usize>,
+  // > {
+  //   size: Named<SizeVal, usize>,
+  //   size_proof: ListSize<ListVal, SizeVal>,
+  //   non_empty_proof: Option<NonEmpty<ListVal>>,
+  //   phantom: PhantomData<Elem>,
+  // }
 
   pub fn list_size<Elem, ListVal: HasType<Vec<Elem>>>(
     seed: Seed<impl Name>,
     list: &Named<ListVal, Vec<Elem>>,
-  ) -> SizeResult<Elem, ListVal, impl HasType<usize>>
+  ) -> ExistListSize<impl HasType<usize>, Elem, ListVal>
   {
     let size = list.value().len();
-    if size == 0 {
-      SizeResult {
-        size: seed.new_named(size),
-        size_proof: ListSize(PhantomData),
-        non_empty_proof: None,
-        phantom: PhantomData,
-      }
+    new_exist_list_size(seed, size)
+  }
+
+  pub fn list_not_empty<
+    Elem,
+    ListVal: HasType<Vec<Elem>>,
+    SizeVal: HasType<usize>,
+  >(
+    list_size: &Named<SizeVal, usize>,
+    _list_has_size: &ListHasSize<Elem, SizeVal, ListVal>,
+  ) -> Option<NonEmpty<Elem, ListVal>>
+  {
+    if list_size.value() == &0 {
+      None
     } else {
-      SizeResult {
-        size: seed.new_named(size),
-        size_proof: ListSize(PhantomData),
-        non_empty_proof: Some(NonEmpty(PhantomData)),
-        phantom: PhantomData,
-      }
+      Some(NonEmpty::new())
     }
   }
 
@@ -81,12 +86,12 @@ mod size
     NewListVal: HasType<Vec<Elem>>,
     SizeVal: HasType<usize>,
   >(
-    _size: ListSize<OldListVal, SizeVal>,
+    _size: ListHasSize<Elem, SizeVal, OldListVal>,
     _sorted: Sorted<NewListVal>,
     _sorted_from: SortedFrom<NewListVal, OldListVal>,
-  ) -> ListSize<NewListVal, SizeVal>
+  ) -> ListHasSize<Elem, SizeVal, NewListVal>
   {
-    ListSize(PhantomData)
+    ListHasSize::new()
   }
 
   pub fn sorted_preserve_non_empty<
@@ -94,10 +99,10 @@ mod size
     OldListVal: HasType<Vec<Elem>>,
     NewListVal: HasType<Vec<Elem>>,
   >(
-    _non_empty: NonEmpty<OldListVal>,
+    _non_empty: NonEmpty<Elem, OldListVal>,
     _sorted: Sorted<NewListVal>,
     _sorted_from: SortedFrom<NewListVal, OldListVal>,
-  ) -> NonEmpty<NewListVal>
+  ) -> NonEmpty<Elem, NewListVal>
   {
     NonEmpty(PhantomData)
   }
@@ -186,7 +191,7 @@ mod min
     seed: Seed<impl Name>,
     list: &'a Named<ListVal, Vec<Elem>>,
     _sorted: Sorted<ListVal>,
-    _non_empty: NonEmpty<ListVal>,
+    _non_empty: NonEmpty<Elem, ListVal>,
   ) -> MinResult<'a, Elem, ListVal, impl HasType<&'a Elem>>
   {
     let elem = list.value().first().unwrap();

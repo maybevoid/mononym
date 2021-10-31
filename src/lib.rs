@@ -1,7 +1,7 @@
 #![no_std]
 #![doc = include_str!("../README.md")]
 
-mod named;
+pub mod named;
 
 pub mod proof;
 
@@ -10,6 +10,7 @@ pub mod macros;
 pub use named::{
   with_seed,
   HasType,
+  Life,
   Name,
   Named,
   Seed,

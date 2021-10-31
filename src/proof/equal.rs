@@ -1,7 +1,7 @@
 use crate::named::*;
 
 crate::proof! {
-    IsEqual<T>(first: T, second: T);
+  IsEqual<T>(first: T, second: T);
 }
 
 pub fn check_equal<T: Eq, FirstVal: HasType<T>, SecondVal: HasType<T>>(
