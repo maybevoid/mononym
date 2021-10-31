@@ -86,6 +86,8 @@ fn main()
 
     let percent = to_percentage(&x, &y, &x_is_less_than_y, &y_not_zero);
 
+    assert_eq!(percent, 50.0);
+
     println!("percentage of {}/{} is {}%", x.value(), y.value(), percent);
   })
 }

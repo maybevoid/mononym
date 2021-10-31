@@ -22,6 +22,7 @@ Mononym enables the use of the design pattern [Ghosts of Departed Proofs](https:
 
 Here are a few examples sneak peek that are currently work in progress. Apologize for the lack of documentation for the examples. There will be in-depth tutorials that go through the example code and guide the readers on how to use `mononym` to define proofs.
 
+- [Arithmetic](./examples/number.rs)
 - [Type-level Access Control](./examples/access_control.rs)
 - [Proofs on Data Structures](./examples/data_structures.rs)
 - [Extracting Information From List](./examples/list.rs)
