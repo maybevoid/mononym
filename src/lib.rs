@@ -21,7 +21,6 @@
   generation in Rust.
 */
 
-
 /**
 The main implementation for named data types.
 */
@@ -51,12 +50,11 @@ pub mod docs
 
   #[doc = include_str!("../docs/implementation.md")]
   pub mod implementation
-  {
-  }
+  {}
 
   #[doc = include_str!("../docs/demo.md")]
-  pub mod demo {}
-
+  pub mod demo
+  {}
 }
 
 #[cfg(test)]

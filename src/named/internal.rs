@@ -130,7 +130,7 @@ impl<N> Seed<N>
    however it can be used as a proxy type for users to
    define their own name-based abstractions.
   */
-  pub fn new_name(self) -> impl Name
+  pub fn new_name(self) -> impl Name + 'static
   {
     unsafe_new_name(|| {})
   }
@@ -145,6 +145,14 @@ impl<N> Seed<N>
     self,
     value: T,
   ) -> Named<impl HasType<T>, T>
+  {
+    unsafe_new_named(unsafe_new_name_with_type(|| {}), value)
+  }
+
+  pub fn new_named_static<T: 'static>(
+    self,
+    value: T,
+  ) -> Named<impl HasType<T> + 'static, T>
   {
     unsafe_new_named(unsafe_new_name_with_type(|| {}), value)
   }
@@ -175,7 +183,9 @@ impl<N> Seed<N>
    replicate functions multiple times if they need more than
    8 seed replications, which should be rarely happen.
   */
-  pub fn replicate(self) -> (Seed<impl Name>, Seed<impl Name>)
+  pub fn replicate(
+    self
+  ) -> (Seed<impl Name + 'static>, Seed<impl Name + 'static>)
   {
     (unsafe_new_seed(|| {}), unsafe_new_seed(|| {}))
   }
@@ -261,7 +271,7 @@ where
   SomeName(PhantomData::<F>)
 }
 
-fn unsafe_new_seed<F>(_: F) -> Seed<impl Name>
+fn unsafe_new_seed<F: 'static>(_: F) -> Seed<impl Name + 'static>
 where
   F: Send + Sync,
 {
@@ -280,7 +290,11 @@ impl<N: Name> Seed<N>
 {
   pub fn replicate_3(
     self
-  ) -> (Seed<impl Name>, Seed<impl Name>, Seed<impl Name>)
+  ) -> (
+    Seed<impl Name + 'static>,
+    Seed<impl Name + 'static>,
+    Seed<impl Name + 'static>,
+  )
   {
     (
       unsafe_new_seed(|| {}),
@@ -292,10 +306,10 @@ impl<N: Name> Seed<N>
   pub fn replicate_4(
     self
   ) -> (
-    Seed<impl Name>,
-    Seed<impl Name>,
-    Seed<impl Name>,
-    Seed<impl Name>,
+    Seed<impl Name + 'static>,
+    Seed<impl Name + 'static>,
+    Seed<impl Name + 'static>,
+    Seed<impl Name + 'static>,
   )
   {
     (
@@ -309,11 +323,11 @@ impl<N: Name> Seed<N>
   pub fn replicate_5(
     self
   ) -> (
-    Seed<impl Name>,
-    Seed<impl Name>,
-    Seed<impl Name>,
-    Seed<impl Name>,
-    Seed<impl Name>,
+    Seed<impl Name + 'static>,
+    Seed<impl Name + 'static>,
+    Seed<impl Name + 'static>,
+    Seed<impl Name + 'static>,
+    Seed<impl Name + 'static>,
   )
   {
     (
@@ -328,12 +342,12 @@ impl<N: Name> Seed<N>
   pub fn replicate_6(
     self
   ) -> (
-    Seed<impl Name>,
-    Seed<impl Name>,
-    Seed<impl Name>,
-    Seed<impl Name>,
-    Seed<impl Name>,
-    Seed<impl Name>,
+    Seed<impl Name + 'static>,
+    Seed<impl Name + 'static>,
+    Seed<impl Name + 'static>,
+    Seed<impl Name + 'static>,
+    Seed<impl Name + 'static>,
+    Seed<impl Name + 'static>,
   )
   {
     (
@@ -349,13 +363,13 @@ impl<N: Name> Seed<N>
   pub fn replicate_7(
     self
   ) -> (
-    Seed<impl Name>,
-    Seed<impl Name>,
-    Seed<impl Name>,
-    Seed<impl Name>,
-    Seed<impl Name>,
-    Seed<impl Name>,
-    Seed<impl Name>,
+    Seed<impl Name + 'static>,
+    Seed<impl Name + 'static>,
+    Seed<impl Name + 'static>,
+    Seed<impl Name + 'static>,
+    Seed<impl Name + 'static>,
+    Seed<impl Name + 'static>,
+    Seed<impl Name + 'static>,
   )
   {
     (
@@ -372,14 +386,14 @@ impl<N: Name> Seed<N>
   pub fn replicate_8(
     self
   ) -> (
-    Seed<impl Name>,
-    Seed<impl Name>,
-    Seed<impl Name>,
-    Seed<impl Name>,
-    Seed<impl Name>,
-    Seed<impl Name>,
-    Seed<impl Name>,
-    Seed<impl Name>,
+    Seed<impl Name + 'static>,
+    Seed<impl Name + 'static>,
+    Seed<impl Name + 'static>,
+    Seed<impl Name + 'static>,
+    Seed<impl Name + 'static>,
+    Seed<impl Name + 'static>,
+    Seed<impl Name + 'static>,
+    Seed<impl Name + 'static>,
   )
   {
     (
