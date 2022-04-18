@@ -107,13 +107,13 @@ impl <N: Name> Seed<N> {
     SomeName::<N>(PhantomData)
   }
 
-  pub fn replicate(self) -> (Seed<impl Name>, Seed<impl Name>)
+  pub fn replicate(self) -> (impl Seed, impl Seed)
   {
     (Seed(PhantomData::<N>), Seed(PhantomData::<N>))
   }
 }
 
-fn test(seed: Seed<impl Name>) {
+fn test(seed: impl Seed) {
   fn same<T>(_: T, _: T) {}
   let (seed1, seed2) = seed.replicate();
   same(seed1, seed2); // error
@@ -123,11 +123,11 @@ fn test(seed: Seed<impl Name>) {
 
 The type `Seed<N>` is parameterized by a name `N` and provides two methods. The first method `new_name(self)` _consumes_ the seed and returns a new `impl Name` (notice the lack of `&` in `self`). Since the seed is consumed when generating the name, the same seed cannot be used to generate another new name of the same type.
 
-Although the seed is consumed during name generation, the second method `replicate(self)` consumes the original seed, and returns two new seeds with unique names in the form of `Seed<impl Name>`. Notice that the two `Seed<impl Name>` returned by `replicate` are considered different types by Rust, even when they have the same underlying concrete type `Seed<N>`. By calling `replicate` one or more times, we will be able to generate multiple names with unique types.
+Although the seed is consumed during name generation, the second method `replicate(self)` consumes the original seed, and returns two new seeds with unique names in the form of `impl Seed`. Notice that the two `impl Seed` returned by `replicate` are considered different types by Rust, even when they have the same underlying concrete type `Seed<N>`. By calling `replicate` one or more times, we will be able to generate multiple names with unique types.
 
-Since there is no public constructor function to create new `Seed` value, the only way external users can create new seed is by replicating existing seeds. In this way, external functions would have to always accept `Seed<impl Name>` as an argument somewhere along the function calls to be able to generate new names.
+Since there is no public constructor function to create new `Seed` value, the only way external users can create new seed is by replicating existing seeds. In this way, external functions would have to always accept `impl Seed` as an argument somewhere along the function calls to be able to generate new names.
 
-By treating our `test` function as an external function, it is forced to accept a `Seed<impl Name>` in order to generate new `impl Name`s. We first use `seed.replicate()` to create two new seeds `seed1` and `seed2`. When we compile the code, we can find out that the test `same(seed1, seed2)` fails, indicating that the two replicated seeds have different types. Similarly, the test `same(seed1.new_name(), seed2.new_name())` fails because the two names are generated from different seeds. It is also not possible to do something like `same(seed.new_name(), seed.new_name())`, because the affine type system of Rust consumes the seed during name generation and to not allow the seed to be reused.
+By treating our `test` function as an external function, it is forced to accept a `impl Seed` in order to generate new `impl Name`s. We first use `seed.replicate()` to create two new seeds `seed1` and `seed2`. When we compile the code, we can find out that the test `same(seed1, seed2)` fails, indicating that the two replicated seeds have different types. Similarly, the test `same(seed1.new_name(), seed2.new_name())` fails because the two names are generated from different seeds. It is also not possible to do something like `same(seed.new_name(), seed.new_name())`, because the affine type system of Rust consumes the seed during name generation and to not allow the seed to be reused.
 
 ## Named Values
 
@@ -152,13 +152,13 @@ impl <N: Name> Seed<N> {
     Named::<N, _>(value, PhantomData)
   }
 
-   pub fn replicate(self) -> (Seed<impl Name>, Seed<impl Name>)
+   pub fn replicate(self) -> (impl Seed, impl Seed)
   {
     (Seed(PhantomData::<N>), Seed(PhantomData::<N>))
   }
 }
 
-fn test(seed: Seed<impl Name>) {
+fn test(seed: impl Seed) {
   fn same<T>(_: T, _: T) {}
   let (seed1, seed2) = seed.replicate();
   same(seed1.new_named(1), seed2.new_named(1)); // error
@@ -169,13 +169,13 @@ The struct `Named<Name, T>` is essentially a newtype wrapper around `T`, with th
 
 The `Seed` type now provides a `new_named` method that accepts an owned value of type `T`, and returns a `Named<impl Name, T>`. Because the `impl Name` is nested inside `Named`, we can guarantee that the new name given to the value is unique, provided that the `Seed` type is unique.
 
-Similar to earlier, we can test that two named values indeed have different names by writing a `test` function that accepts a `Seed<impl Name>`. After replicating the seed, we can verify that the test `same(seed1.new_named(1), seed2.new_named(1))` fails with error during compilation. This shows that the `Named<impl Name, i32>` vallues returned by the two calls to `new_name` are indeed unique.
+Similar to earlier, we can test that two named values indeed have different names by writing a `test` function that accepts a `impl Seed`. After replicating the seed, we can verify that the test `same(seed1.new_named(1), seed2.new_named(1))` fails with error during compilation. This shows that the `Named<impl Name, i32>` vallues returned by the two calls to `new_name` are indeed unique.
 
 We can think of the type `Named<Name, T>` as being a _singleton type_, that is, a type with only one possible value. With Rust's affine type system, the singleton guarantee is even stronger that we can never have two Rust values of type `Named<Name, T>` with the same `Name` type.
 
 ## Unique Lifetime with Higher Ranked Trait Bounds
 
-Our setup for generating uniquely named values is mostly complete, provided we are able to hand over the first unique `Seed` value to the main function to start generating new names. But we cannot simply expose a function like `fn new_seed() -> Seed<impl Name>`, as we know that two calls to the same function will return two values of the same type, thereby making them non-unique.
+Our setup for generating uniquely named values is mostly complete, provided we are able to hand over the first unique `Seed` value to the main function to start generating new names. But we cannot simply expose a function like `fn new_seed() -> impl Seed`, as we know that two calls to the same function will return two values of the same type, thereby making them non-unique.
 
 We know that in languages like Haskell, it is possible to generate unique types by using continuation-passing-style with _higher-ranked_ continuations. While Rust do not currently support higher-ranked types, it instead supports [_higher-ranked trait bounds_](https://rustc-dev-guide.rust-lang.org/traits/hrtb.html) (HRTB) which can be used in similar way.
 
@@ -207,7 +207,7 @@ impl <N: Name> Seed<N> {
     Named::<N, _>(value, PhantomData)
   }
 
-   pub fn replicate(self) -> (Seed<impl Name>, Seed<impl Name>)
+   pub fn replicate(self) -> (impl Seed, impl Seed)
   {
     (Seed(PhantomData::<N>), Seed(PhantomData::<N>))
   }

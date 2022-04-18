@@ -66,7 +66,7 @@ macro_rules! exists_single {
         $( [< $suchthat:camel Val >] $( : $crate::HasType<$suchtype> )?  ),*
       >
       (
-        seed : $crate::Seed<impl $crate::Name>,
+        seed : impl $crate::Seed,
         [< $name:snake >] : $type,
       ) ->
         [< $exists:camel >]

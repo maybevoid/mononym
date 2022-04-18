@@ -9,7 +9,7 @@ mod list_size
   }
 
   pub fn list_size<T, ListVal: HasType<Vec<T>>>(
-    seed: Seed<impl Name>,
+    seed: impl Seed,
     list: &Named<ListVal, Vec<T>>,
   ) -> ExistSize<impl HasType<usize>, T, ListVal>
   {
@@ -27,7 +27,7 @@ mod list_positive
   }
 
   pub fn count_positive_integers<ListVal: HasType<Vec<i64>>>(
-    seed: Seed<impl Name>,
+    seed: impl Seed,
     list: &Named<ListVal, Vec<i64>>,
   ) -> ExistPositives<impl HasType<usize>, ListVal>
   {
@@ -104,7 +104,7 @@ mod greater_than_half_positive_dynamic
   };
 
   pub fn maybe_greater_than_half_positive<ListVal: HasType<Vec<i64>>>(
-    seed: Seed<impl Name>,
+    seed: impl Seed,
     data: &Named<ListVal, Vec<i64>>,
   ) -> Option<GreaterThanHalfPositive<ListVal>>
   {
@@ -141,7 +141,7 @@ mod process_static
 
 mod process_data_dynamic
 {
-  use mononym::with_seed;
+  use mononym::*;
 
   use super::{
     greater_than_half_positive_dynamic::maybe_greater_than_half_positive,
@@ -157,9 +157,9 @@ mod process_data_dynamic
   pub fn process_data(data: Vec<i64>) -> Result<i64, Error>
   {
     with_seed(move |seed| {
-      let (seed1, seed2) = seed.replicate();
+      let (seed1, seed2) = replicate_seed(seed.into_seed());
 
-      let data = seed1.new_named(data);
+      let data = new_named(seed1, data);
 
       let proof = maybe_greater_than_half_positive(seed2, &data)
         .ok_or(Error::LessThanHalfPositive)?;

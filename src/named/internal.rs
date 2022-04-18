@@ -6,7 +6,7 @@ use core::marker::PhantomData;
  the library are always considered distinct types by Rust.
 
  This is mainly used as a type parameter inside types such as
- [`Seed`]. For example, the type `Seed<impl Name>`
+ [`Seed`]. For example, the type `impl Seed`
  is used to represent a unique seed type with a fresh type
  `impl Name` being its name.
 */
@@ -43,16 +43,78 @@ pub trait HasType<T>: Name {}
 pub struct Named<N: HasType<T>, T>(T, PhantomData<N>);
 
 /**
- A unique seed type for generating new unique names. `mononym`
- guarantees that there can never be two seed value of the same type
- `Seed<N>` with the same name type `N`.
-
- A `Seed` value is required to generate new names for values to be
- used in types such as [`Named`]. A seed value can be obtained by
- either making functions accept a `Seed<impl Name>` as its argument,
- or creating fresh `Seed` value using [`with_seed`].
+ This trait is not exported so that the Name trait
+ becomes a [_sealed trait_](https://rust-lang.github.io/api-guidelines/future-proofing.html)
+ which user cannot provide custom implementation to.
 */
-pub struct Seed<N>(PhantomData<N>);
+pub trait Sealed {}
+
+pub trait Seed: Sealed + Send + 'static
+{
+  type Name<T>: HasType<T>;
+
+  type Next1: Seed;
+
+  type Next2: Seed;
+
+  fn replicate(self) -> (Self::Next1, Self::Next2);
+
+  fn new_named<T>(
+    self,
+    value: T,
+  ) -> Named<Self::Name<T>, T>;
+}
+
+pub fn replicate_seed(seed: impl Seed) -> (impl Seed, impl Seed)
+{
+  seed.replicate()
+}
+
+pub fn new_named<T>(
+  seed: impl Seed,
+  value: T,
+) -> Named<impl HasType<T>, T>
+{
+  seed.new_named(value)
+}
+
+pub struct IntoSeed<N>(PhantomData<N>);
+
+impl<N> IntoSeed<N>
+{
+  pub fn into_seed(self) -> impl Seed + 'static
+  {
+    struct SomeName;
+    struct SomeSeed;
+
+    impl Sealed for SomeName {}
+    impl Name for SomeName {}
+    impl<T> HasType<T> for SomeName {}
+
+    impl Sealed for SomeSeed {}
+    impl Seed for SomeSeed
+    {
+      type Name<T> = SomeName;
+      type Next1 = SomeSeed;
+      type Next2 = SomeSeed;
+
+      fn replicate(self) -> (Self::Next1, Self::Next2)
+      {
+        (SomeSeed, SomeSeed)
+      }
+
+      fn new_named<T>(
+        self,
+        value: T,
+      ) -> Named<Self::Name<T>, T>
+      {
+        Named(value, PhantomData)
+      }
+    }
+
+    SomeSeed
+  }
+}
 
 /**
  Turns a lifetime `'name` into a unique type `Life<'name>`
@@ -78,135 +140,6 @@ pub struct Seed<N>(PhantomData<N>);
  ```
 */
 pub struct Life<'name>(PhantomData<*mut &'name ()>);
-
-struct SomeName<N>(PhantomData<N>);
-
-impl<N: HasType<T>, T> Named<N, T>
-{
-  /**
-   Get a reference to the underlying value of the named value.
-   `mononym` does not provide access to mutable reference to
-   the underlying value, as mutation may invalidate the proofs
-   of pre-conditions constructed from the original value.
-
-   When using `Named`, it is up to the user to ensure that there
-   is no accidental
-   [interior mutability](https://doc.rust-lang.org/reference/interior-mutability.html)
-   provided by the value type `T`. Otherwise, user must take
-   into consideration of the possibility of interior mutability
-   and ensure that the invariants assumed by the proofs defined
-   cannot be violated.
-  */
-  pub fn value(&self) -> &T
-  {
-    &self.0
-  }
-
-  /**
-   Consume the named value and turn it back into the underlying value.
-   After this, the underlying value is no longer associated with the
-   type-level name, and can be safely mutated.
-
-   Even though the named value is destroyed, the type-level name
-   can still continue to present in other places such as proof objects.
-   This can be useful for functions that only require proofs about
-   a value, without requiring access to the value itself.
-  */
-  pub fn into_value(self) -> T
-  {
-    self.0
-  }
-}
-
-impl<N> Seed<N>
-{
-  /**
-   Consumes the seed and returns a value with a unique type
-   `impl Name`. The value on its own do not have much use,
-   however it can be used as a proxy type for users to
-   define their own name-based abstractions.
-  */
-  pub fn new_name(self) -> impl Name + 'static
-  {
-    unsafe_new_name(|| {})
-  }
-
-  /**
-   Consumes the seed and a value of type `T` and turn it into
-   a named value [`Named<impl HasType<T>, T>`]. The returned
-   named value have a unique type-level name that implements
-   both [`Name`] and [`HasType<T>`].
-  */
-  pub fn new_named<T>(
-    self,
-    value: T,
-  ) -> Named<impl HasType<T>, T>
-  {
-    unsafe_new_named(unsafe_new_name_with_type(|| {}), value)
-  }
-
-  pub fn new_named_static<T: 'static>(
-    self,
-    value: T,
-  ) -> Named<impl HasType<T> + 'static, T>
-  {
-    unsafe_new_named(unsafe_new_name_with_type(|| {}), value)
-  }
-
-  /**
-   Consumes the seed and returns two new seeds `Seed<impl Name>`
-   with unique names and thus of different types.
-
-   `mononym` guarantees that each replicated seed will generate
-   different names, thereby guarantee that the names are always
-   unique.
-
-   For example, the following code should fail with compile error:
-
-   ```rust,compile_fail
-   # use mononym::*;
-   fn same<T>(_: T, _: T) {}
-   fn test(seed: Seed<impl Name>) {
-     let (seed1, seed2) = seed.replicate();
-     same(seed1, seed2); // error
-     same(seed1.new_named(()), seed2.new_named(())); // error
-   }
-   ```
-
-   For convenience, `mononym` also provides the replicate functions
-   from [`Seed::replicate_3`] up to [`Seed::replicate_8`] to allow
-   easy replication of the seed for 2-8 times. User can call the
-   replicate functions multiple times if they need more than
-   8 seed replications, which should be rarely happen.
-  */
-  pub fn replicate(
-    self
-  ) -> (Seed<impl Name + 'static>, Seed<impl Name + 'static>)
-  {
-    (unsafe_new_seed(|| {}), unsafe_new_seed(|| {}))
-  }
-}
-
-/**
- This trait is not exported so that the Name trait
- becomes a [_sealed trait_](https://rust-lang.github.io/api-guidelines/future-proofing.html)
- which user cannot provide custom implementation to.
-*/
-pub trait Sealed {}
-
-impl<N> Sealed for SomeName<N> where N: Send + Sync {}
-
-impl<N> Name for SomeName<N> where N: Send + Sync {}
-
-impl<N, T> HasType<T> for SomeName<N> where N: Send + Sync {}
-
-unsafe impl<'name> Send for Life<'name> {}
-
-unsafe impl<'name> Sync for Life<'name> {}
-
-impl<'name> Sealed for Life<'name> {}
-
-impl<'name> Name for Life<'name> {}
 
 /**
  Provides the continuation closure with a unique [`Seed`] with a unique lifetime
@@ -246,159 +179,46 @@ impl<'name> Name for Life<'name> {}
  let res = with_seed(|seed| { seed.new_named(42) }); // error
  ```
 */
-pub fn with_seed<R>(cont: impl for<'name> FnOnce(Seed<Life<'name>>) -> R) -> R
+pub fn with_seed<R>(
+  cont: impl for<'name> FnOnce(IntoSeed<Life<'name>>) -> R
+) -> R
 {
-  cont(Seed(PhantomData))
+  cont(IntoSeed(PhantomData))
 }
 
-fn unsafe_new_name<F>(_: F) -> impl Name
-where
-  F: Send + Sync,
+impl<N: HasType<T>, T> Named<N, T>
 {
-  SomeName(PhantomData::<F>)
-}
+  /**
+   Get a reference to the underlying value of the named value.
+   `mononym` does not provide access to mutable reference to
+   the underlying value, as mutation may invalidate the proofs
+   of pre-conditions constructed from the original value.
 
-fn unsafe_new_name_with_type<F, T>(_: F) -> impl HasType<T>
-where
-  F: Send + Sync,
-{
-  SomeName(PhantomData::<F>)
-}
-
-fn unsafe_new_seed<F: 'static>(_: F) -> Seed<impl Name + 'static>
-where
-  F: Send + Sync,
-{
-  Seed(PhantomData::<SomeName<F>>)
-}
-
-fn unsafe_new_named<Name: HasType<T>, T>(
-  _: Name,
-  value: T,
-) -> Named<Name, T>
-{
-  Named(value, PhantomData)
-}
-
-impl<N: Name> Seed<N>
-{
-  pub fn replicate_3(
-    self
-  ) -> (
-    Seed<impl Name + 'static>,
-    Seed<impl Name + 'static>,
-    Seed<impl Name + 'static>,
-  )
+   When using `Named`, it is up to the user to ensure that there
+   is no accidental
+   [interior mutability](https://doc.rust-lang.org/reference/interior-mutability.html)
+   provided by the value type `T`. Otherwise, user must take
+   into consideration of the possibility of interior mutability
+   and ensure that the invariants assumed by the proofs defined
+   cannot be violated.
+  */
+  pub fn value(&self) -> &T
   {
-    (
-      unsafe_new_seed(|| {}),
-      unsafe_new_seed(|| {}),
-      unsafe_new_seed(|| {}),
-    )
+    &self.0
   }
 
-  pub fn replicate_4(
-    self
-  ) -> (
-    Seed<impl Name + 'static>,
-    Seed<impl Name + 'static>,
-    Seed<impl Name + 'static>,
-    Seed<impl Name + 'static>,
-  )
-  {
-    (
-      unsafe_new_seed(|| {}),
-      unsafe_new_seed(|| {}),
-      unsafe_new_seed(|| {}),
-      unsafe_new_seed(|| {}),
-    )
-  }
+  /**
+   Consume the named value and turn it back into the underlying value.
+   After this, the underlying value is no longer associated with the
+   type-level name, and can be safely mutated.
 
-  pub fn replicate_5(
-    self
-  ) -> (
-    Seed<impl Name + 'static>,
-    Seed<impl Name + 'static>,
-    Seed<impl Name + 'static>,
-    Seed<impl Name + 'static>,
-    Seed<impl Name + 'static>,
-  )
+   Even though the named value is destroyed, the type-level name
+   can still continue to present in other places such as proof objects.
+   This can be useful for functions that only require proofs about
+   a value, without requiring access to the value itself.
+  */
+  pub fn into_value(self) -> T
   {
-    (
-      unsafe_new_seed(|| {}),
-      unsafe_new_seed(|| {}),
-      unsafe_new_seed(|| {}),
-      unsafe_new_seed(|| {}),
-      unsafe_new_seed(|| {}),
-    )
-  }
-
-  pub fn replicate_6(
-    self
-  ) -> (
-    Seed<impl Name + 'static>,
-    Seed<impl Name + 'static>,
-    Seed<impl Name + 'static>,
-    Seed<impl Name + 'static>,
-    Seed<impl Name + 'static>,
-    Seed<impl Name + 'static>,
-  )
-  {
-    (
-      unsafe_new_seed(|| {}),
-      unsafe_new_seed(|| {}),
-      unsafe_new_seed(|| {}),
-      unsafe_new_seed(|| {}),
-      unsafe_new_seed(|| {}),
-      unsafe_new_seed(|| {}),
-    )
-  }
-
-  pub fn replicate_7(
-    self
-  ) -> (
-    Seed<impl Name + 'static>,
-    Seed<impl Name + 'static>,
-    Seed<impl Name + 'static>,
-    Seed<impl Name + 'static>,
-    Seed<impl Name + 'static>,
-    Seed<impl Name + 'static>,
-    Seed<impl Name + 'static>,
-  )
-  {
-    (
-      unsafe_new_seed(|| {}),
-      unsafe_new_seed(|| {}),
-      unsafe_new_seed(|| {}),
-      unsafe_new_seed(|| {}),
-      unsafe_new_seed(|| {}),
-      unsafe_new_seed(|| {}),
-      unsafe_new_seed(|| {}),
-    )
-  }
-
-  pub fn replicate_8(
-    self
-  ) -> (
-    Seed<impl Name + 'static>,
-    Seed<impl Name + 'static>,
-    Seed<impl Name + 'static>,
-    Seed<impl Name + 'static>,
-    Seed<impl Name + 'static>,
-    Seed<impl Name + 'static>,
-    Seed<impl Name + 'static>,
-    Seed<impl Name + 'static>,
-  )
-  {
-    (
-      unsafe_new_seed(|| {}),
-      unsafe_new_seed(|| {}),
-      unsafe_new_seed(|| {}),
-      unsafe_new_seed(|| {}),
-      unsafe_new_seed(|| {}),
-      unsafe_new_seed(|| {}),
-      unsafe_new_seed(|| {}),
-      unsafe_new_seed(|| {}),
-    )
+    self.0
   }
 }

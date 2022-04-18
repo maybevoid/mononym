@@ -1,4 +1,5 @@
 #![no_std]
+#![feature(generic_associated_types)]
 
 /*!
   Mononym is a library for creating unique type-level names for each value
@@ -32,8 +33,11 @@ pub mod proof;
 pub mod macros;
 
 pub use named::{
+  new_named,
+  replicate_seed,
   with_seed,
   HasType,
+  IntoSeed,
   Life,
   Name,
   Named,

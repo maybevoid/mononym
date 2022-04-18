@@ -22,7 +22,7 @@ proof! {
 }
 
 pub fn add_one<NumVal: HasType<u64>>(
-    seed: Seed<impl Name>,
+    seed: impl Seed,
     num: &Named<NumVal, u64>,
 ) -> Option<(Named<impl Name, u64>, IsSuccessor<??, NumVal>)>
 {
@@ -62,7 +62,7 @@ pub struct ExistSuccessor<
 fn new_exist_successor<
     PredVal: HasType<u64>,
 >
-( seed: Seed<impl Name>,
+( seed: impl Seed,
     succ: u64,
 ) -> ExistSuccessor<impl HasType<u64>, PredVal>
 {
@@ -73,7 +73,7 @@ fn new_exist_successor<
 }
 
 pub fn add_one<NumVal: HasType<u64>>(
-    seed: Seed<impl Name>,
+    seed: impl Seed,
     num: &Named<NumVal, u64>,
 ) -> Option<ExistSuccessor<impl HasType<u64>, NumVal>>
 {
@@ -106,7 +106,7 @@ exists! {
 }
 
 pub fn add_one<NumVal: HasType<u64>>(
-    seed: Seed<impl Name>,
+    seed: impl Seed,
     num: &Named<NumVal, u64>,
 ) -> Option<ExistSuccessor<impl HasType<u64>, NumVal>>
 {

@@ -100,7 +100,7 @@ mod named_query
   }
 
   pub fn get_user_info<UserIdVal: HasType<UserId>>(
-    seed: Seed<impl Name>,
+    seed: impl Seed,
     user_id: Named<UserIdVal, UserId>,
   ) -> Result<ExistUser<impl HasType<User>, UserIdVal>, DbError>
   {
@@ -110,7 +110,7 @@ mod named_query
   }
 
   pub fn get_user_groups<UserIdVal: HasType<UserId>>(
-    seed: Seed<impl Name>,
+    seed: impl Seed,
     user_id: &Named<UserIdVal, UserId>,
   ) -> Result<ExistGroups<impl HasType<Vec<Group>>, UserIdVal>, DbError>
   {
@@ -133,7 +133,7 @@ mod named_query
   }
 
   pub fn get_post_info<PostIdVal: HasType<PostId>>(
-    seed: Seed<impl Name>,
+    seed: impl Seed,
     post_id: &Named<PostIdVal, PostId>,
   ) -> Result<ExistPost<impl HasType<Post>, PostIdVal>, DbError>
   {
@@ -254,7 +254,7 @@ mod access_control
   }
 
   pub fn get_post_group<PostIdVal: HasType<PostId>, PostVal: HasType<Post>>(
-    seed: Seed<impl Name>,
+    seed: impl Seed,
     post: &Named<PostVal, Post>,
     _post_has_id: &PostHasId<PostVal, PostIdVal>,
   ) -> Option<ExistPostGroup<impl HasType<GroupId>, PostIdVal>>

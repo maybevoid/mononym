@@ -29,9 +29,9 @@ use less_than_eq::*;
 use mononym::*;
 
 with_seed(|seed| {
-  let (seed1, seed2) = seed.replicate();
-  let x: Named<_, u32> = seed1.new_named(2);
-  let y: Named<_, u32> = seed2.new_named(4);
+  let (seed1, seed2) = replicate_seed(seed.into_seed());
+  let x: Named<_, u32> = new_named(seed1, 2);
+  let y: Named<_, u32> = new_named(seed2, 4);
 
   let x_is_less_than_y: LessThanEq<_, _> =
     check_less_than_eq(&x, &y).expect("should get proof that x <= y");
@@ -131,9 +131,9 @@ use non_zero::*;
 use percentage::*;
 
 with_seed(|seed| {
-  let (seed1, seed2) = seed.replicate();
-  let x: Named<_, u32> = seed1.new_named(2);
-  let y: Named<_, u32> = seed2.new_named(4);
+  let (seed1, seed2) = replicate_seed(seed.into_seed());
+  let x: Named<_, u32> = new_named(seed1, 2);
+  let y: Named<_, u32> = new_named(seed2, 4);
 
   let x_is_less_than_y: LessThanEq<_, _> =
     check_less_than_eq(&x, &y).expect("should get proof that x <= y");

@@ -56,7 +56,7 @@ mod size
   // }
 
   pub fn list_size<Elem, ListVal: HasType<Vec<Elem>>>(
-    seed: Seed<impl Name>,
+    seed: impl Seed,
     list: &Named<ListVal, Vec<Elem>>,
   ) -> ExistListSize<impl HasType<usize>, Elem, ListVal>
   {
@@ -134,10 +134,10 @@ mod sort
     sorted_from: SortedFrom<NewListVal, OldListVal>,
   }
 
-  pub fn sort<Elem: Ord, ListVal: HasType<Vec<Elem>>>(
-    seed: Seed<impl Name>,
+  pub fn sort<'a, Elem: 'a + Ord, ListVal: HasType<Vec<Elem>>>(
+    seed: impl Seed,
     list: Named<ListVal, Vec<Elem>>,
-  ) -> SortedResult<Elem, ListVal, impl HasType<Vec<Elem>>>
+  ) -> SortedResult<Elem, ListVal, impl HasType<Vec<Elem>> + 'a>
 where
   {
     let mut new_list = list.into_value();
@@ -188,7 +188,7 @@ mod min
   }
 
   pub fn min<Elem, ListVal: HasType<Vec<Elem>>>(
-    seed: Seed<impl Name>,
+    seed: impl Seed,
     list: &Named<ListVal, Vec<Elem>>,
     _sorted: Sorted<ListVal>,
     _non_empty: NonEmpty<Elem, ListVal>,
@@ -237,7 +237,7 @@ mod lookup
     MapVal: HasType<BTreeMap<Key, Value>>,
     KeyVal: HasType<Key>,
   >(
-    seed: Seed<impl Name>,
+    seed: impl Seed,
     map: &'a Named<MapVal, BTreeMap<Key, Value>>,
     key: &Named<KeyVal, Key>,
   ) -> Option<LookupResult<'a, Value, MapVal, KeyVal, impl HasType<&'a Value>>>
