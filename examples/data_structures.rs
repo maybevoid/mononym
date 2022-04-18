@@ -187,12 +187,12 @@ mod min
     min_proof: MinElem<ListVal, ElemVal>,
   }
 
-  pub fn min<'a, Elem, ListVal: HasType<Vec<Elem>>>(
+  pub fn min<Elem, ListVal: HasType<Vec<Elem>>>(
     seed: Seed<impl Name>,
-    list: &'a Named<ListVal, Vec<Elem>>,
+    list: &Named<ListVal, Vec<Elem>>,
     _sorted: Sorted<ListVal>,
     _non_empty: NonEmpty<Elem, ListVal>,
-  ) -> MinResult<'a, Elem, ListVal, impl HasType<&'a Elem>>
+  ) -> MinResult<Elem, ListVal, impl HasType<&Elem>>
   {
     let elem = list.value().first().unwrap();
 

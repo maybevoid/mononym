@@ -109,20 +109,18 @@ mod greater_than_half_positive_dynamic
   ) -> Option<GreaterThanHalfPositive<ListVal>>
   {
     let (seed1, seed2) = seed.replicate();
-    let size = list_size(seed1, &data);
-    let positives = count_positive_integers(seed2, &data);
+    let size = list_size(seed1, data);
+    let positives = count_positive_integers(seed2, data);
 
     let greater_half = greater_than_half(&positives.count, &size.size);
 
-    let proof = greater_half.map(|greater_half| {
+    greater_half.map(|greater_half| {
       greater_than_half_positive(
         &size.list_has_size,
         &positives.list_has_positives,
         &greater_half,
       )
-    });
-
-    proof
+    })
   }
 }
 
@@ -164,7 +162,7 @@ mod process_data_dynamic
       let data = seed1.new_named(data);
 
       let proof = maybe_greater_than_half_positive(seed2, &data)
-        .ok_or_else(|| Error::LessThanHalfPositive)?;
+        .ok_or(Error::LessThanHalfPositive)?;
 
       let res = process_data_static(&data, &proof);
 

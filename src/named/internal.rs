@@ -10,9 +10,7 @@ use core::marker::PhantomData;
  is used to represent a unique seed type with a fresh type
  `impl Name` being its name.
 */
-pub trait Name: Send + Sync + Sealed
-{
-}
+pub trait Name: Send + Sync + Sealed {}
 
 /**
  A marker trait that is used to mark a type-level name being bound to
@@ -28,9 +26,7 @@ pub trait Name: Send + Sync + Sealed
  type `Named<impl HasType<T>, T>` also attaches the type information
  to the type-level name associated with the named value.
 */
-pub trait HasType<T>: Name
-{
-}
+pub trait HasType<T>: Name {}
 
 /**
  Represents a named value with a unique type-level name. `monoym`
@@ -101,7 +97,7 @@ impl<N: HasType<T>, T> Named<N, T>
    and ensure that the invariants assumed by the proofs defined
    cannot be violated.
   */
-  pub fn value<'a>(&'a self) -> &'a T
+  pub fn value(&self) -> &T
   {
     &self.0
   }
@@ -196,9 +192,7 @@ impl<N> Seed<N>
  becomes a [_sealed trait_](https://rust-lang.github.io/api-guidelines/future-proofing.html)
  which user cannot provide custom implementation to.
 */
-pub trait Sealed
-{
-}
+pub trait Sealed {}
 
 impl<N> Sealed for SomeName<N> where N: Send + Sync {}
 
