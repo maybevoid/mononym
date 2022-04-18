@@ -156,10 +156,10 @@ mod process_data_dynamic
 
   pub fn process_data(data: Vec<i64>) -> Result<i64, Error>
   {
-    with_seed(move |seed| {
-      let (seed1, seed2) = replicate_seed(seed.into_seed());
+    with_seed(move |life| {
+      let (seed1, seed2) = life.into_seed().replicate();
 
-      let data = new_named(seed1, data);
+      let data = seed1.new_named(data);
 
       let proof = maybe_greater_than_half_positive(seed2, &data)
         .ok_or(Error::LessThanHalfPositive)?;

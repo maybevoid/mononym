@@ -135,7 +135,7 @@ mod sort
   }
 
   pub fn sort<'a, Elem: 'a + Ord, ListVal: HasType<Vec<Elem>>>(
-    seed: impl Seed,
+    seed: impl Seed + 'a,
     list: Named<ListVal, Vec<Elem>>,
   ) -> SortedResult<Elem, ListVal, impl HasType<Vec<Elem>> + 'a>
 where

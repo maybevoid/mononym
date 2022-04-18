@@ -65,24 +65,28 @@ pub trait Seed: Sealed + Send + 'static
   ) -> Named<Self::Name<T>, T>;
 }
 
-pub fn replicate_seed(seed: impl Seed) -> (impl Seed, impl Seed)
+impl<'a> Life<'a>
 {
-  seed.replicate()
-}
+  /**
+   Turns a unique lifetime proxy to an existential [`Seed`].
+   Since all `Life<'a>` must be unique via [`with_seed`],
+   the returned `impl Seed` is also always unique.
 
-pub fn new_named<T>(
-  seed: impl Seed,
-  value: T,
-) -> Named<impl HasType<T>, T>
-{
-  seed.new_named(value)
-}
+   The existential associated types `Next1` and Next2` are
+   also treated as different types by Rust, even though they
+   all have the same underlying concrete type. In other words,
+   the following test must fail:
 
-pub struct IntoSeed<N>(PhantomData<N>);
-
-impl<N> IntoSeed<N>
-{
-  pub fn into_seed(self) -> impl Seed + 'static
+   ```rust,compile_fail
+   # use mononym::*;
+   fn same<T>(_: T, _: T) {}
+   fn same_next<'a>(life: Life<'a>) {
+     let (seed1, seed2) = life.into_seed().replicate();
+     same(seed1, seed2);
+   }
+   ```
+  */
+  pub fn into_seed(self) -> impl Seed
   {
     struct SomeName;
     struct SomeSeed;
@@ -98,7 +102,7 @@ impl<N> IntoSeed<N>
       type Next1 = SomeSeed;
       type Next2 = SomeSeed;
 
-      fn replicate(self) -> (Self::Next1, Self::Next2)
+      fn replicate<'a>(self) -> (Self::Next1, Self::Next2)
       {
         (SomeSeed, SomeSeed)
       }
@@ -179,11 +183,9 @@ pub struct Life<'name>(PhantomData<*mut &'name ()>);
  let res = with_seed(|seed| { seed.new_named(42) }); // error
  ```
 */
-pub fn with_seed<R>(
-  cont: impl for<'name> FnOnce(IntoSeed<Life<'name>>) -> R
-) -> R
+pub fn with_seed<R>(cont: impl for<'name> FnOnce(Life<'name>) -> R) -> R
 {
-  cont(IntoSeed(PhantomData))
+  cont(Life(PhantomData))
 }
 
 impl<N: HasType<T>, T> Named<N, T>
